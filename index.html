@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Base64 Image Loader</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      (function () {
+        function getParamFromHash(name) {
+          if (!location.hash) return null;
+          const params = new URLSearchParams(location.hash.slice(1));
+          return params.get(name);
+        }
+
+        const searchParams = new URLSearchParams(location.search);
+        const b64FromQuery = searchParams.get('b64');
+        const mimeFromQuery = searchParams.get('mime');
+
+        const b64FromHash = getParamFromHash('b64');
+        const mimeFromHash = getParamFromHash('mime');
+
+        let b64 = b64FromQuery || b64FromHash;
+        let mime = mimeFromQuery || mimeFromHash || 'image/png';
+
+        if (!b64) {
+          document.addEventListener('DOMContentLoaded', () => {
+            document.body.textContent = 'Missing b64 param.';
+          });
+          return;
+        }
+
+        // If a full data URL was passed, just navigate to it
+        if (b64.startsWith('data:')) {
+          window.location.replace(b64);
+          return;
+        }
+
+        // Some generators incorrectly convert '+' to spaces; try to normalize
+        if (b64.includes(' ') && !b64.includes('+')) {
+          b64 = b64.replace(/ /g, '+');
+        }
+
+        // Normalize URL-safe base64 variants and add padding if needed
+        b64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = b64.length % 4;
+        if (pad) b64 += '='.repeat(4 - pad);
+
+        function base64ToUint8Array(base64) {
+          try {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        const bytes = base64ToUint8Array(b64);
+        if (!bytes) {
+          document.addEventListener('DOMContentLoaded', () => {
+            document.body.textContent = 'Invalid base64 input.';
+          });
+          return;
+        }
+
+        const blob = new Blob([bytes], { type: mime });
+        const objectUrl = URL.createObjectURL(blob);
+        window.location.replace(objectUrl);
+      })();
+    </script>
+  </head>
+  <body></body>
+  </html>
+
+
